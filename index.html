@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>边缘浏览器 - Microsoft Edge</title>
+<style>
+  :root{
+    --bg0:#f3f3f3; --bg1:#ffffff; --bg2:#ffffff; --fg:#1b1b1b; --fg2:#5f5f5f; --fg3:#8a8a8a;
+    --line:#e5e5e5; --hov:rgba(0,0,0,.07); --hov2:rgba(0,0,0,.05);
+    --accent:#0078d4; --accent-soft:rgba(0,120,212,.12);
+    --danger:#c42b1c; --ok:#107c10; --warn:#ffb900;
+    --shadow:0 2px 10px rgba(0,0,0,.12);
+  }
+  body.dark{
+    --bg0:#202124; --bg1:#2d2e31; --bg2:#35363a; --fg:#e8e8e8; --fg2:#c0c0c0; --fg3:#9aa0a6;
+    --line:#45464a; --hov:rgba(255,255,255,.09); --hov2:rgba(255,255,255,.06);
+    --accent:#4cc2ff; --accent-soft:rgba(76,194,255,.16);
+    --danger:#ff6b5c; --ok:#6ccb6c;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%; overflow:hidden; font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif; background:var(--bg0); color:var(--fg);}
+  #app{display:flex; flex-direction:column; height:100%;}
+
+  /* ============ 标签栏 ============ */
+  #tabstrip{display:flex; align-items:flex-end; background:var(--bg0); padding:6px 8px 0 8px; user-select:none; min-height:40px;}
+  #tabs{display:flex; align-items:flex-end; gap:4px; overflow-x:auto; overflow-y:hidden; flex:1; scrollbar-width:none;}
+  #tabs::-webkit-scrollbar{display:none;}
+  .tab{display:flex; align-items:center; gap:7px; min-width:120px; max-width:220px; height:34px; padding:0 8px 0 10px;
+       border-radius:8px 8px 0 0; cursor:pointer; color:var(--fg2); font-size:12px; flex-shrink:0; position:relative;}
+  .tab:hover{background:var(--hov2);}
+  .tab.active{background:var(--bg1); color:var(--fg); box-shadow:var(--shadow);}
+  body.dark .tab.active{background:#2d2e31;}
+  .tab .fav{width:15px; height:15px; border-radius:3px; display:flex; align-items:center; justify-content:center;
+       font-size:9px; color:#fff; font-weight:700; flex-shrink:0;}
+  .tab .ttl{flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .tab .close{width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--fg3);}
+  .tab .close:hover{background:rgba(196,43,28,.15); color:var(--danger);}
+  .tab .ld{width:12px; height:12px; border:2px solid var(--accent); border-top-color:transparent; border-radius:50%;
+      animation:spin .8s linear infinite; flex-shrink:0; display:none;}
+  .tab.loading .ld{display:block;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  #newtab-btn{width:32px; height:32px; margin:0 2px 1px 4px; border-radius:8px; border:none; background:transparent;
+       color:var(--fg2); font-size:18px; cursor:pointer; flex-shrink:0; line-height:1;}
+  #newtab-btn:hover{background:var(--hov);}
+
+  /* ============ 工具栏 ============ */
+  #toolbar{display:flex; align-items:center; gap:2px; padding:6px 12px; background:var(--bg1); border-bottom:1px solid var(--line);}
+  body.dark #toolbar{background:#2d2e31;}
+  .tb-btn{width:34px; height:34px; border-radius:8px; border:none; background:transparent; color:var(--fg);
+       display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; font-size:16px;}
+  .tb-btn:hover{background:var(--hov);}
+  .tb-btn:disabled{color:var(--fg3); cursor:default; background:transparent;}
+  .tb-btn:disabled svg{opacity:.4;}
+  .tb-btn svg{width:18px; height:18px; fill:currentColor;}
+  #addrwrap{flex:1; display:flex; align-items:center; margin:0 8px; height:36px; padding:0 12px;
+       background:var(--bg0); border:1px solid var(--line); border-radius:999px; transition:box-shadow .15s, background .15s;}
+  body.dark #addrwrap{background:#45464a; border-color:#45464a;}
+  #addrwrap:focus-within{background:var(--bg1); box-shadow:0 0 0 2px var(--accent-soft), 0 0 0 1px var(--accent);}
+  body.dark #addrwrap:focus-within{background:#3a3b3e;}
+  #addrlock{width:16px; height:16px; margin-right:8px; color:var(--fg3); flex-shrink:0;}
+  #addrlock.secure{color:var(--ok);}
+  #addr{flex:1; border:none; outline:none; background:transparent; font-size:13px; color:var(--fg); min-width:0;}
+  #addr-star{width:28px; height:28px; border-radius:50%; border:none; background:transparent; color:var(--fg3);
+       cursor:pointer; font-size:16px; flex-shrink:0;}
+  #addr-star:hover{background:var(--hov); color:var(--warn);}
+  #addr-star.saved{color:var(--warn);}
+
+  /* ============ 收藏夹栏 ============ */
+  #favbar{display:flex; align-items:center; gap:2px; padding:3px 12px; background:var(--bg1); border-bottom:1px solid var(--line); overflow-x:auto; scrollbar-width:none;}
+  body.dark #favbar{background:#2d2e31;}
+  #favbar::-webkit-scrollbar{display:none;}
+  .favitem{display:flex; align-items:center; gap:6px; padding:4px 10px; border:none; background:transparent;
+       border-radius:6px; color:var(--fg2); font-size:12px; cursor:pointer; white-space:nowrap; flex-shrink:0;}
+  .favitem:hover{background:var(--hov2); color:var(--fg);}
+  .favitem .fav{width:16px; height:16px; border-radius:4px; color:#fff; display:flex; align-items:center;
+       justify-content:center; font-size:10px; font-weight:700;}
+
+  /* ============ 内容区 ============ */
+  #content{flex:1; position:relative; background:var(--bg1);}
+  .pane{position:absolute; inset:0; display:none;}
+  .pane.active{display:block;}
+  .pane iframe{width:100%; height:100%; border:none; display:block; background:#fff;}
+  .pane.noframe{overflow:auto;}
+
+  /* 新标签页 */
+  .ntp{min-height:100%; background:linear-gradient(160deg,#e8f3ff 0%,#f5f9ff 35%,#eef7f0 100%); display:flex;
+       flex-direction:column; align-items:center; padding:70px 20px 60px;}
+  body.dark .ntp{background:linear-gradient(160deg,#20242e 0%,#23252a 45%,#1e2a24 100%);}
+  .ntp-logo{font-size:26px; font-weight:600; letter-spacing:.5px; margin-bottom:28px; display:flex; align-items:center; gap:10px;}
+  .ntp-logo .e{width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#0aa488,#00b294 45%,#3aa6dd 95%);
+       display:flex; align-items:center; justify-content:center; color:#fff; font-size:20px; font-weight:700;}
+  .ntp-search{width:min(560px,90%); display:flex; align-items:center; background:#fff; border:1px solid #d0d7e2;
+       border-radius:24px; height:48px; padding:0 10px 0 18px; box-shadow:0 4px 18px rgba(0,60,120,.10);}
+  body.dark .ntp-search{background:#2d2e31; border-color:#45464a;}
+  .ntp-search:focus-within{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);}
+  .ntp-search svg{width:20px; height:20px; fill:var(--accent); margin-right:10px; flex-shrink:0;}
+  .ntp-search input{flex:1; border:none; outline:none; background:transparent; font-size:14px; color:var(--fg);}
+  .ntp-search button{width:36px; height:36px; border-radius:50%; border:none; background:var(--accent); color:#fff;
+       cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .ntp-search button svg{width:16px; height:16px; fill:#fff; margin:0;}
+  .ntp-hint{margin-top:12px; font-size:12px; color:var(--fg3);}
+  .ntp-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:18px; width:min(640px,90%);
+       margin-top:40px; justify-items:center;}
+  .ntp-slot{width:96px; padding:14px 4px; border-radius:12px; display:flex; flex-direction:column; align-items:center;
+       gap:8px; background:transparent; border:none; cursor:pointer; color:var(--fg); font-size:12px;}
+  .ntp-slot:hover{background:rgba(255,255,255,.65);}
+  body.dark .ntp-slot:hover{background:rgba(255,255,255,.08);}
+  .ntp-slot .fav{width:42px; height:42px; border-radius:12px; color:#fff; display:flex; align-items:center;
+       justify-content:center; font-size:20px; font-weight:700; box-shadow:0 3px 8px rgba(0,0,0,.12);}
+  .ntp-slot span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:92px;}
+
+  /* 错误页 */
+  .errpage{height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;
+       text-align:center; padding:40px; background:var(--bg1); color:var(--fg);}
+  .errpage .ico{width:88px; height:88px; border-radius:50%; background:var(--bg0); display:flex; align-items:center;
+       justify-content:center; margin-bottom:26px; color:var(--fg2);}
+  .errpage .ico svg{width:44px; height:44px; fill:currentColor;}
+  .errpage h2{font-size:22px; font-weight:600; margin-bottom:10px;}
+  .errpage .err-code{font-size:12px; color:var(--fg3); background:var(--bg0); padding:2px 10px; border-radius:10px; margin-bottom:16px;}
+  .errpage p{font-size:13px; color:var(--fg2); max-width:520px; line-height:1.7; margin-bottom:24px;}
+  .err-actions{display:flex; gap:10px; flex-wrap:wrap; justify-content:center;}
+  .btn{border:none; border-radius:6px; padding:9px 18px; font-size:13px; cursor:pointer;
+       background:var(--accent); color:#fff; display:inline-flex; align-items:center; gap:6px;}
+  .btn:hover{filter:brightness(1.08);}
+  .btn.ghost{background:transparent; color:var(--accent); border:1px solid var(--accent);}
+  .btn.ghost:hover{background:var(--accent-soft);}
+  .btn.gray{background:var(--bg0); color:var(--fg); border:1px solid var(--line);}
+  .btn.gray:hover{background:var(--hov);}
+
+  /* 跳转确认条（顶部浮动提示） */
+  #jumpbar{position:fixed; left:50%; top:56px; transform:translateX(-50%); z-index:99; display:none; align-items:center;
+       gap:10px; background:var(--bg1); color:var(--fg); border:1px solid var(--line); border-radius:10px;
+       box-shadow:var(--shadow); padding:10px 16px; font-size:13px; max-width:70vw;}
+  #jumpbar.show{display:flex; animation:drop .18s ease;}
+  @keyframes drop{from{transform:translate(-50%,-8px); opacity:0;} to{transform:translate(-50%,0); opacity:1;}}
+  #jumpbar .jb-url{max-width:320px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--accent);}
+
+  /* 被拒绝嵌入时的覆盖层错误页 */
+  .blocked-overlay{position:absolute; inset:0; z-index:10; background:var(--bg1);}
+
+  /* 状态栏 */
+  #statusbar{display:flex; align-items:center; justify-content:space-between; height:24px; padding:0 14px;
+       background:var(--bg1); border-top:1px solid var(--line); font-size:11px; color:var(--fg3); user-select:none;}
+  #status-right{display:flex; gap:14px;}
+
+  /* 更多菜单 */
+  .menu{position:fixed; z-index:100; background:var(--bg1); border:1px solid var(--line); border-radius:8px;
+       box-shadow:var(--shadow); min-width:240px; padding:6px; display:none;}
+  .menu.show{display:block; animation:drop .12s ease;}
+  .menu .mi{display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:6px; cursor:pointer; font-size:13px;}
+  .menu .mi:hover{background:var(--hov);}
+  .menu .mi svg{width:16px; height:16px; fill:currentColor; opacity:.85;}
+  .menu .mi .k{margin-left:auto; font-size:11px; color:var(--fg3);}
+  .menu .sep{height:1px; background:var(--line); margin:5px 8px;}
+  .menu .mi .tick{margin-left:auto; color:var(--accent); font-size:14px;}
+
+  /* 标签页右键菜单 */
+  #tabmenu{min-width:200px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="tabstrip">
+    <div id="tabs"></div>
+    <button id="newtab-btn" title="新标签页 (Ctrl+T)">+</button>
+  </div>
+  <div id="toolbar">
+    <button class="tb-btn" id="btn-back" title="后退 (Alt+←)"><svg viewBox="0 0 24 24"><path d="M15.4 16.6l-4.6-4.6 4.6-4.6L14 6l-6 6 6 6z"/></svg></button>
+    <button class="tb-btn" id="btn-fwd" title="前进 (Alt+→)"><svg viewBox="0 0 24 24"><path d="M8.6 16.6L13.2 12l-4.6-4.6L10 6l6 6-6 6z"/></svg></button>
+    <button class="tb-btn" id="btn-reload" title="重新加载 (F5)"><svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4z"/></svg></button>
+    <button class="tb-btn" id="btn-home" title="主页 (必应 Bing)"><svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></button>
+    <div id="addrwrap">
+      <svg id="addrlock" class="secure" viewBox="0 0 24 24"><path d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10a2 2 0 0 0-2-2zM9 6a3 3 0 0 1 6 0v2H9V6zm3 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg>
+      <input id="addr" type="text" placeholder="搜索或输入网址" spellcheck="false" autocomplete="off">
+      <button id="addr-star" title="收藏当前页面">☆</button>
+    </div>
+    <button class="tb-btn" id="btn-wall" title="切换到新标签页 (Ctrl+T)"><svg viewBox="0 0 24 24"><path d="M4 11h5V5H4v6zm0 7h5v-6H4v6zm6 0h5v-6h-5v6zm6 0h4v-6h-4v6zm-6-7h5V5h-5v6zm6-6v6h4V5h-4z"/></svg></button>
+    <button class="tb-btn" id="btn-new" title="新建窗口（调用新的 HTML 实例）"><svg viewBox="0 0 24 24"><path d="M14 5h5v5h-2V8.4L11 14l-1.4-1.4 6-6H14V5zm-8 0h5v2H6v11h11v-5h2v7H4V5z"/></svg></button>
+    <button class="tb-btn" id="btn-menu" title="设置和更多 (⋯)"><svg viewBox="0 0 24 24"><path d="M6 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg></button>
+  </div>
+  <div id="favbar"></div>
+  <div id="content"></div>
+  <div id="statusbar">
+    <span id="status-left">就绪</span>
+    <span id="status-right"><span id="stat-zoom">100%</span><span>边缘浏览器 · 仿 Microsoft Edge</span></span>
+  </div>
+</div>
+
+<div id="jumpbar">
+  <span>⚡ 跳转请求已拦截，改为新开标签页：</span><span class="jb-url" id="jb-url"></span>
+  <button class="btn" id="jb-open">在新标签页打开</button>
+  <button class="btn gray" id="jb-close">忽略</button>
+</div>
+
+<div id="menu" class="menu"></div>
+<div id="tabmenu" class="menu"></div>
+
+<script>
+"use strict";
+/* ============================================================
+ * 边缘浏览器 (Edge Mini) - 单文件仿 Edge 浏览器
+ * 主页: cn.bing.com ｜ 跳转请求 → 新标签页（可配置）
+ * 被站点拒绝嵌入时显示错误页, 可"新建 HTML 实例"打开
+ * ============================================================ */
+
+var HOME = "https://baidu.com";
+var SEARCH = "https://baidu.com";
+
+/* 已知禁止嵌入的站点（实测含 X-Frame-Options / CSP frame-ancestors 限制）。
+ * 命中时直接显示美化错误页，避免 iframe 加载出 Chromium 的裸错误图标；未命中的站点仍靠超时兜底。 */
+var BLOCKLIST = ["cn.bing.com","www.bing.com","bing.com","www.qq.com","qq.com"];
+function isBlocklisted(url){
+  if(!url) return false;
+  var host;
+  try{ host = new URL(url).hostname.toLowerCase(); }catch(e){ return false; }
+  return BLOCKLIST.some(function(b){ return host === b || host.endsWith("." + b); });
+}
+
+var FAVORITES = [
+  {name:"必应（拦截）", url:"https://cn.bing.com", color:"#0078d4"},
+  {name:"百度", url:"https://www.baidu.com", color:"#2932e1"},
+  {name:"知乎", url:"https://www.zhihu.com", color:"#0084ff"},
+  {name:"哔哩哔哩", url:"https://www.bilibili.com", color:"#fb7299"},
+  {name:"微博", url:"https://weibo.com", color:"#e6162d"},
+  {name:"淘宝", url:"https://www.taobao.com", color:"#ff5000"},
+  {name:"京东", url:"https://www.jd.com", color:"#e1251b"},
+  {name:"网易", url:"https://www.163.com", color:"#e60012"},
+  {name:"百度翻译", url:"https://fanyi.baidu.com", color:"#4e6ef2"},
+  {name:"示例站", url:"https://example.com", color:"#5f6368"}
+];
+
+var PALETTE = ["#0078d4","#107c10","#8c6d1f","#a4262c","#0078d7","#5c2d91","#e17800","#038387","#8e562e"];
+
+var tabs = [];            // [{id,url,title,fav,color,hist,histIdx,state,navToken,loading}]
+var activeId = null;
+var tabSeq = 1;
+var jumpToNewTab = true;  // 跳转请求 → 新标签页（默认开启）
+var dark = false;
+
+/* ---------------- 工具 ---------------- */
+function $(id){ return document.getElementById(id); }
+function normUrl(input){
+  var s = input.trim();
+  if(!s) return null;
+  if(/^[a-z][a-z0-9+.-]*:\/\//i.test(s)) return s;
+  if(/^file:\/\//i.test(s)) return s;
+  if(/[\s\u4e00-\u9fff]/.test(s)) return null;              // 含中文/空格 → 搜索
+  if(/^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(s)) return "https://" + s; // 域名补全
+  return null;
+}
+function hostOf(url){
+  try{ return new URL(url).hostname; }catch(e){ return url; }
+}
+/* HTTPS 加载失败时切换为 HTTP 重试 */
+function httpSwap(url){
+  return /^https:/i.test(url) ? url.replace(/^https:/i, "http:") : url;
+}
+function colorOf(host){
+  var h = 0;
+  for(var i=0;i<host.length;i++) h = (h*31 + host.charCodeAt(i)) >>> 0;
+  return PALETTE[h % PALETTE.length];
+}
+function letterOf(host){
+  var m = host.replace(/^www\./,"").replace(/^m\./,"");
+  return (m[0]||"?").toUpperCase();
+}
+function favicon(host,color){
+  var el = document.createElement("span");
+  el.className = "fav";
+  el.style.background = color;
+  el.textContent = letterOf(host);
+  return el;
+}
+
+/* ---------------- 标签管理 ---------------- */
+function newTab(url, opts){
+  opts = opts || {};
+  var id = tabSeq++;
+  var t = {
+    id:id, url:null, title:"新标签页", fav:letterOf(HOME), color:colorOf(hostOf(url||HOME)),
+    hist:[], histIdx:-1, state:"newtab", navToken:0, loading:false, httpTried:false
+  };
+  tabs.push(t);
+  renderTabs();
+  var pane = document.createElement("div");
+  pane.className = "pane" + (url ? "" : " noframe");
+  pane.dataset.tid = id;
+  if(!url){
+    pane.innerHTML = ntpHTML();
+    bindNtp(pane, id);
+  } else {
+    var ifr = document.createElement("iframe");
+    ifr.setAttribute("sandbox","allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox");
+    ifr.setAttribute("referrerpolicy","no-referrer-when-downgrade");
+    ifr.addEventListener("load", function(){ onFrameLoad(id); });
+    pane.appendChild(ifr);
+  }
+  $("content").appendChild(pane);
+  switchTab(id);
+  if(url) navTo(id, url);
+  return id;
+}
+
+function closeTab(id){
+  var i = tabs.findIndex(function(t){return t.id===id;});
+  if(i < 0) return;
+  var pane = document.querySelector('.pane[data-tid="'+id+'"]');
+  if(pane) pane.remove();
+  tabs.splice(i,1);
+  if(tabs.length === 0){ newTab(null); return; }
+  if(activeId === id){
+    var next = tabs[Math.min(i, tabs.length-1)];
+    switchTab(next.id);
+  }
+  renderTabs();
+}
+
+function switchTab(id){
+  activeId = id;
+  document.querySelectorAll(".pane").forEach(function(p){
+    p.classList.toggle("active", p.dataset.tid === String(id));
+  });
+  renderTabs();
+  var t = findTab(id);
+  if(t){ syncChrome(t); }
+}
+
+function findTab(id){ return tabs.find(function(t){return t.id===id;}) || null; }
+function activeTab(){ return findTab(activeId); }
+function historyPush(t){
+  t.hist = t.hist.slice(0, t.histIdx+1);
+  t.hist.push(t.url);
+  t.histIdx = t.hist.length - 1;
+}
+
+/* 导航: url 为空 → 新标签页 */
+function navTo(id, url){
+  var t = findTab(id); if(!t) return;
+  url = url || null;
+  if(url === null && t.state === "newtab"){ switchTab(id); return; }
+  var pane = document.querySelector('.pane[data-tid="'+id+'"]');
+  var token = ++t.navToken;
+  hideBlockedOverlay(id);
+  clearTabTimer(t);
+  t.url = url;
+  t.state = url ? "web" : "newtab";
+  t.title = url ? hostOf(url) : "新标签页";
+  t.color = colorOf(hostOf(url || HOME));
+  t.fav = letterOf(hostOf(url||HOME));
+  if(url && isBlocklisted(url)){
+    // 已知禁嵌站点：直接显示美化错误页（仍可"尝试嵌入"）
+    t.loading = false;
+    if(url){ historyPush(t); }
+    renderTabs();
+    syncChrome(t);
+    setStatus("站点策略禁止嵌入：" + url);
+    showBlockedOverlay(t);
+    return;
+  }
+  t.loading = true;
+  if(url){
+    pane.classList.remove("noframe");
+    var ifr = pane.querySelector("iframe");
+    if(!ifr){
+      pane.innerHTML = "";
+      ifr = document.createElement("iframe");
+      ifr.setAttribute("sandbox","allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox");
+      ifr.setAttribute("referrerpolicy","no-referrer-when-downgrade");
+      ifr.addEventListener("load", function(){ onFrameLoad(id); });
+      pane.appendChild(ifr);
+    }
+    ifr.src = url;
+    setLoading(id, true);
+  } else {
+    pane.classList.add("noframe");
+    pane.innerHTML = ntpHTML();
+    bindNtp(pane, id);
+    setLoading(id, false);
+  }
+  if(url){ historyPush(t); scheduleLoadTimeout(t); }
+  renderTabs();
+  syncChrome(t);
+  setStatus("正在加载 " + (url || "新标签页") + " …", url);
+}
+
+function onFrameLoad(id){
+  var t = findTab(id);
+  if(!t || !t.loading) return;
+  clearTabTimer(t);
+  setLoading(id, false);
+  hideBlockedOverlay(id);
+  // 同源页面可读取真实标题; 跨源禁止则保留域名标题
+  try{
+    var pane = document.querySelector('.pane[data-tid="'+id+'"]');
+    var ifr = pane.querySelector("iframe");
+    if(ifr && ifr.contentDocument && ifr.contentDocument.title){
+      var title = ifr.contentDocument.title.trim();
+      if(title) t.title = title.slice(0,60);
+    }
+  }catch(e){}
+  if(activeId === id) syncChrome(t);
+  setStatus("完成：" + (t.title || t.url));
+}
+
+function setLoading(id, on){
+  var t = findTab(id); if(!t) return;
+  t.loading = on;
+  renderTabs();
+}
+
+/* ---------------- 渲染 ---------------- */
+function renderTabs(){
+  var box = $("tabs");
+  box.innerHTML = "";
+  tabs.forEach(function(t){
+    var el = document.createElement("div");
+    el.className = "tab" + (t.id===activeId ? " active" : "") + (t.loading ? " loading" : "");
+    el.dataset.tid = t.id;
+    var host = t.url ? hostOf(t.url) : "edge";
+    el.appendChild(favicon(host, t.color));
+    var ttl = document.createElement("span");
+    ttl.className = "ttl";
+    ttl.textContent = t.loading ? "加载中…" : (t.title || "新标签页");
+    el.appendChild(ttl);
+    var ld = document.createElement("span");
+    ld.className = "ld";
+    el.appendChild(ld);
+    var c = document.createElement("span");
+    c.className = "close";
+    c.textContent = "×";
+    c.addEventListener("click", function(ev){ ev.stopPropagation(); closeTab(t.id); });
+    el.appendChild(c);
+    el.addEventListener("click", function(){ switchTab(t.id); });
+    el.addEventListener("contextmenu", function(ev){ ev.preventDefault(); showTabMenu(ev, t.id); });
+    box.appendChild(el);
+  });
+}
+
+function ntpHTML(){
+  var html = '<div class="ntp">';
+  html += '<div class="ntp-logo"><span class="e">e</span>新标签页 · 必应 Bing 主页</div>';
+  html += '<form class="ntp-search" data-role="search">';
+  html += '<svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>';
+  html += '<input type="text" placeholder="搜索必应 (Bing) 或输入网址" autocomplete="off">';
+  html += '<button type="submit" title="搜索"><svg viewBox="0 0 24 24"><path d="M12 4l-1.7 1.5L12 6.6V10H9.6l-3-3L5 8.6 8 12l-3 3.4L6.6 17l3-3H12v3.4l-1.7 1.1L12 20l1.7-1.5-1.7-1.1V14h2.4l3 3 1.6-1.6-3-3.4 3-3.4L18.4 7l-3 3H13V6.6l1.7-1.1z" transform="scale(1.5)"/></svg></button>';
+  html += '</form><div class="ntp-hint">主页 cn.bing.com 已被站点禁止嵌入时，会自动提示在“新窗口/HTML 实例”中打开</div>';
+  html += '<div class="ntp-grid">';
+  FAVORITES.forEach(function(f){
+    html += '<button class="ntp-slot" data-url="'+f.url+'"><span class="fav" style="background:'+f.color+'">'+letterOf(hostOf(f.url))+'</span><span>'+f.name+'</span></button>';
+  });
+  html += '</div></div>';
+  return html;
+}
+function bindNtp(pane, id){
+  pane.querySelector("[data-role=search]").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var q = pane.querySelector("input").value.trim();
+    if(!q) return;
+    openResult(q, id);
+  });
+  pane.querySelectorAll(".ntp-slot").forEach(function(b){
+    b.addEventListener("click", function(){ onExternalRequest(b.dataset.url); });
+  });
+}
+function openResult(q, id){
+  var url = normUrl(q);
+  if(url){ onExternalRequest(url); return; }
+  var searchUrl = SEARCH + encodeURIComponent(q);
+  onExternalRequest(searchUrl);
+}
+
+/* ---------------- 工具栏 ---------------- */
+function syncChrome(t){
+  var addr = $("addr");
+  if(t.state === "newtab"){ addr.value = ""; addr.placeholder = "搜索或输入网址"; }
+  else { addr.value = t.url; addr.placeholder = "搜索或输入网址"; }
+  $("addrlock").classList.toggle("secure", !!t.url && /^https:/.test(t.url));
+  $("btn-back").disabled = t.histIdx <= 0;
+  $("btn-fwd").disabled = t.histIdx >= t.hist.length - 1;
+  $("addr-star").classList.toggle("saved", !!t.url && FAVORITES.some(function(f){ return f.url === t.url; }));
+}
+
+function goBack(){ var t=activeTab(); if(!t||t.histIdx<=0) return; t.histIdx--; t.url = t.hist[t.histIdx]; loadUrl(t.id, t.url, false); }
+function goFwd(){ var t=activeTab(); if(!t||t.histIdx>=t.hist.length-1) return; t.histIdx++; t.url=t.hist[t.histIdx]; loadUrl(t.id, t.url, false); }
+function loadUrl(id, url, push){
+  var t = findTab(id); if(!t) return;
+  t.url = url; t.state="web"; t.title=hostOf(url); t.color=colorOf(hostOf(url)); t.fav=letterOf(hostOf(url));
+  var pane = document.querySelector('.pane[data-tid="'+id+'"]');
+  pane.classList.remove("noframe");
+  var ifr = pane.querySelector("iframe");
+  if(!ifr){
+    pane.innerHTML="";
+    ifr=document.createElement("iframe");
+    ifr.setAttribute("sandbox","allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox");
+    ifr.setAttribute("referrerpolicy","no-referrer-when-downgrade");
+    ifr.addEventListener("load", function(){ onFrameLoad(id); });
+    pane.appendChild(ifr);
+  }
+  ++t.navToken;
+  hideBlockedOverlay(id);
+  t.loading=true;
+  ifr.src=url;
+  if(push) historyPush(t);
+  setLoading(id,true);
+  scheduleLoadTimeout(t);
+  renderTabs(); syncChrome(t);
+  setStatus("正在加载 " + url + " …");
+}
+
+function renderFavbar(){
+  var bar = $("favbar");
+  bar.innerHTML = "";
+  FAVORITES.forEach(function(f){
+    var b = document.createElement("button");
+    b.className = "favitem";
+    var host = hostOf(f.url);
+    b.appendChild(favicon(host, f.color));
+    b.appendChild(document.createTextNode(f.name));
+    b.title = f.url;
+    b.addEventListener("click", function(){ onExternalRequest(f.url); });
+    bar.appendChild(b);
+  });
+}
+
+/* ---------------- 地址栏 ---------------- */
+$("addr").addEventListener("keydown", function(ev){
+  if(ev.key === "Enter"){
+    ev.preventDefault();
+    var q = $("addr").value.trim();
+    if(!q) return;
+    openResult(q, activeId);
+    $("addr").blur();
+  }
+});
+$("addr").addEventListener("focus", function(){ this.select(); });
+
+/* ---------------- 按钮 ---------------- */
+$("btn-back").addEventListener("click", goBack);
+$("btn-fwd").addEventListener("click", goFwd);
+$("btn-reload").addEventListener("click", function(){
+  var t = activeTab(); if(!t || !t.url) return;
+  loadUrl(t.id, t.url, false);
+});
+$("btn-home").addEventListener("click", function(){ onExternalRequest(HOME); });
+$("newtab-btn").addEventListener("click", function(){ newTab(null); });
+$("btn-wall").addEventListener("click", function(){ newTab(null); });
+$("btn-new").addEventListener("click", function(){
+  // 调用一个新的 HTML 实例（新浏览器窗口）
+  var base = location.href.split("?")[0].split("#")[0];
+  var t = activeTab();
+  var suffix = (t && t.url) ? "?u=" + encodeURIComponent(t.url) : "";
+  window.open(base + suffix, "_blank");
+});
+$("btn-menu").addEventListener("click", function(ev){
+  ev.stopPropagation();
+  showMenu(ev, buildMenuItems());
+});
+$("jb-open").addEventListener("click", function(){ $("jumpbar").classList.remove("show"); });
+$("jb-close").addEventListener("click", function(){ $("jumpbar").classList.remove("show"); });
+$("addr-star").addEventListener("click", function(){
+  var t = activeTab(); if(!t || !t.url) return;
+  var star = $("addr-star");
+  if(star.classList.contains("saved")){
+    FAVORITES = FAVORITES.filter(function(f){ return f.url !== t.url; });
+    renderFavbar();
+  } else {
+    FAVORITES.unshift({name: hostOf(t.url), url: t.url, color: colorOf(hostOf(t.url))});
+    renderFavbar();
+  }
+  syncChrome(t);
+});
+
+/* ---------------- 菜单 ---------------- */
+function buildMenuItems(){
+  var t = activeTab();
+  var items = [];
+  items.push({label:"新标签页", k:"Ctrl+T", icon:"<svg viewBox='0 0 24 24'><path d='M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z'/></svg>", act:function(){ newTab(null); }});
+  items.push({label:"在新窗口中打开当前页", icon:"<svg viewBox='0 0 24 24'><path d='M14 5h5v5h-2V8.4L11 14l-1.4-1.4 6-6H14V5zm-8 0h5v2H6v11h11v-5h2v7H4V5z'/></svg>", act:function(){ $("btn-new").click(); }});
+  items.push({sep:true});
+  items.push({label:t && t.url ? "复制当前网址" : "复制当前网址（不可用）", act:function(){ var tt=activeTab(); if(tt&&tt.url){ copyText(tt.url); } }});
+  items.push({label:t && t.url ? "在系统浏览器中打开当前页" : "在系统浏览器中打开当前页（不可用）", act:function(){ var tt=activeTab(); if(tt&&tt.url){ window.open(tt.url, "_blank"); } }});
+  items.push({label:"收藏当前页面", act:function(){ $("addr-star").click(); }});
+  items.push({sep:true});
+  items.push({label:"跳转请求 → 新标签页", tick:jumpToNewTab, act:function(){ jumpToNewTab=!jumpToNewTab; }});
+  items.push({label:"深色模式", tick:dark, act:function(){ toggleDark(); }});
+  items.push({sep:true});
+  items.push({label:"关于边缘浏览器", act:function(){ aboutBox(); }});
+  return items;
+}
+function toggleDark(){
+  dark = !dark;
+  document.body.classList.toggle("dark", dark);
+}
+function copyText(s){
+  try{
+    var ta=document.createElement("textarea"); ta.value=s; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); ta.remove();
+    setStatus("已复制到剪贴板：" + s);
+  }catch(e){ setStatus("复制失败"); }
+}
+function aboutBox(){
+  var h = window.open("", "_blank", "width=420,height=300");
+  if(!h){ alert("弹窗被拦截，请允许本页弹窗后重试"); return; }
+  h.document.write("<html><head><meta charset='utf-8'><title>关于</title></head><body style='font-family:Segoe UI,\"Microsoft YaHei\",sans-serif;padding:26px;color:#1b1b1b'>" +
+    "<h2 style='margin:0 0 10px'>🔍 边缘浏览器 (Edge Mini)</h2>" +
+    "<p style='line-height:1.8;font-size:13px;color:#444'>单文件仿 Microsoft Edge 浏览器。<br>" +
+    "主页：<b>cn.bing.com</b>。<br><br>" +
+    "<b>说明</b>：必应、淘宝、微博等站点设置了 <code>X-Frame-Options</code> / CSP 禁止被任何网页嵌入（这是站点主动策略），" +
+    "无法在任意第三方页面中以框架形式显示。此时本浏览器会显示仿 Edge 错误页，并提供<b>“新建 HTML 实例”</b>或<b>“在系统浏览器中打开”</b>的跳板。" +
+    "<br>百度（baidu.com）、知乎（zhihu.com）等未禁止嵌入的站点可在此浏览器中直接访问。</p>" +
+    "<p style='margin-top:18px;font-size:12px;color:#999'>&copy; Edge Mini · 打开 HTML 即用</p></body></html>");
+  h.document.close();
+}
+
+function showMenu(ev, items){
+  var m = $("menu");
+  m.innerHTML = "";
+  items.forEach(function(it){
+    if(it.sep){ var s=document.createElement("div"); s.className="sep"; m.appendChild(s); return; }
+    var d = document.createElement("div");
+    d.className = "mi";
+    if(it.icon) d.insertAdjacentHTML("afterbegin", it.icon);
+    d.appendChild(document.createTextNode(it.label));
+    if(it.k){ var k=document.createElement("span"); k.className="k"; k.textContent=it.k; d.appendChild(k); }
+    if(it.tick){ var tk=document.createElement("span"); tk.className="tick"; tk.textContent="✓"; d.appendChild(tk); }
+    d.addEventListener("click", function(){ hideMenus(); it.act(); });
+    m.appendChild(d);
+  });
+  positionMenu(m, ev);
+  m.classList.add("show");
+}
+function showTabMenu(ev, tid){
+  var m = $("tabmenu");
+  m.innerHTML = "";
+  var items = [
+    {label:"新标签页", act:function(){ newTab(null); }},
+    {label:"重新加载", act:function(){ var t=findTab(tid); if(t&&t.url) loadUrl(tid, t.url, false); }},
+    {label:"复制网址", act:function(){ var t=findTab(tid); if(t&&t.url) copyText(t.url); }},
+    {sep:true},
+    {label:"在新窗口中打开（HTML 实例）", act:function(){
+       var t=findTab(tid);
+       var base=location.href.split("?")[0].split("#")[0];
+       window.open(base + (t&&t.url ? "?u="+encodeURIComponent(t.url) : ""), "_blank");
+    }},
+    {label:"在系统浏览器中打开", act:function(){ var t=findTab(tid); if(t&&t.url) window.open(t.url, "_blank"); }},
+    {sep:true},
+    {label:"关闭标签页", act:function(){ closeTab(tid); }}
+  ];
+  items.forEach(function(it){
+    if(it.sep){ var s=document.createElement("div"); s.className="sep"; m.appendChild(s); return; }
+    var d = document.createElement("div");
+    d.className = "mi";
+    d.appendChild(document.createTextNode(it.label));
+    d.addEventListener("click", function(){ hideMenus(); it.act(); });
+    m.appendChild(d);
+  });
+  positionMenu(m, ev);
+  m.classList.add("show");
+}
+function positionMenu(m, ev){
+  var w = m.offsetWidth || 240;
+  var h = m.offsetHeight || 300;
+  var x = Math.min(ev.clientX, window.innerWidth - w - 8);
+  var y = Math.min(ev.clientY, window.innerHeight - h - 8);
+  m.style.left = x + "px";
+  m.style.top = y + "px";
+}
+function hideMenus(){
+  $("menu").classList.remove("show");
+  $("tabmenu").classList.remove("show");
+  $("jumpbar").classList.remove("show");
+}
+document.addEventListener("click", function(){ hideMenus(); });
+window.addEventListener("resize", hideMenus);
+
+/* ---------------- 跳转请求处理 ---------------- */
+/* 主页/普通跳转均按“新标签页”规则打开；若用户关闭该规则则当前标签导航。
+ * 跳转提示条：展示"跳转请求 → 已转为新标签页"的转接提示。 */
+function onExternalRequest(url){
+  if(jumpToNewTab){
+    newTab(url);
+    flashJumpBar(url);
+  } else {
+    var t = activeTab(); if(t) navTo(t.id, url);
+  }
+}
+function flashJumpBar(url){
+  $("jb-url").textContent = url;
+  $("jumpbar").classList.add("show");
+  setTimeout(function(){ $("jumpbar").classList.remove("show"); }, 3500);
+}
+
+/* ---------------- 快捷键 ---------------- */
+document.addEventListener("keydown", function(ev){
+  if(ev.ctrlKey && ev.key.toLowerCase() === "t"){ ev.preventDefault(); newTab(null); }
+  else if(ev.ctrlKey && ev.key.toLowerCase() === "w"){ ev.preventDefault(); if(activeTab()) closeTab(activeTab().id); }
+  else if(ev.ctrlKey && ev.key.toLowerCase() === "l"){ ev.preventDefault(); $("addr").focus(); }
+  else if(ev.ctrlKey && ev.key.toLowerCase() === "n"){ ev.preventDefault(); $("btn-new").click(); }
+  else if(ev.altKey && ev.key === "ArrowLeft"){ ev.preventDefault(); goBack(); }
+  else if(ev.altKey && ev.key === "ArrowRight"){ ev.preventDefault(); goFwd(); }
+  else if(ev.key === "F5"){ ev.preventDefault(); $("btn-reload").click(); }
+  else if(ev.ctrlKey && ev.key === "Tab"){ ev.preventDefault(); cycleTab(1); }
+  else if(ev.ctrlKey && ev.shiftKey && ev.key === "Tab"){ ev.preventDefault(); cycleTab(-1); }
+});
+function cycleTab(dir){
+  if(!tabs.length) return;
+  var i = tabs.findIndex(function(t){ return t.id===activeId; });
+  var n = (i + dir + tabs.length) % tabs.length;
+  switchTab(tabs[n].id);
+}
+
+/* ---------------- 状态栏 ---------------- */
+var statusTimer = null;
+function setStatus(msg){
+  $("status-left").textContent = msg;
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(function(){
+    if(!tabs.some(function(t){return t.loading;})) $("status-left").textContent = "就绪";
+  }, 2500);
+}
+
+/* ---------------- 错误/被拒页兜底 ---------------- */
+/* 站点禁止嵌入（如 Bing）时 iframe 的 load 不触发；超时后给出 Edge 风格错误页。
+ * 注意：跨源 iframe 无法注入脚本，加载超时是可行的唯一被动探测方式；误报时可点"继续等待"。 */
+var ERR_TIMEOUT = 9000;
+
+function scheduleLoadTimeout(t){
+  clearTabTimer(t);
+  t.loadTimer = setTimeout(function(){
+    var cur = findTab(t.id);
+    if(!cur) return;
+    if(!cur.loading) return;
+    if(cur.state !== "web") return;
+    // HTTPS 未响应 → 自动改用 HTTP 重试一次（仅限不在禁嵌名单的站点）
+    if(/^https:/i.test(cur.url) && !cur.httpTried && !isBlocklisted(cur.url)){
+      cur.httpTried = true;
+      var httpUrl = httpSwap(cur.url);
+      setStatus("HTTPS 未响应，自动改用 HTTP 重试：" + httpUrl);
+      loadUrl(cur.id, httpUrl, false);
+      return;
+    }
+    showBlockedOverlay(cur);
+  }, ERR_TIMEOUT);
+}
+function clearTabTimer(t){
+  if(t.loadTimer){ clearTimeout(t.loadTimer); t.loadTimer = null; }
+}
+
+function showBlockedOverlay(t){
+  var pane = document.querySelector('.pane[data-tid="'+t.id+'"]');
+  if(!pane) return;
+  if(pane.querySelector(".blocked-overlay")) return;
+  var ov = document.createElement("div");
+  ov.className = "blocked-overlay";
+  ov.innerHTML = [
+    '<div class="errpage">',
+    '  <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 15h2v2h-2v-2zm0-10h2v8h-2V7z"/></svg></div>',
+    '  <h2>无法访问此页面</h2>',
+    '  <div class="err-code">ERR_BLOCKED_BY_RESPONSE · ' + escapeHtml(hostOf(t.url)) + '</div>',
+    '  <p>该网站设置了 <code>X-Frame-Options</code> / <code>CSP frame-ancestors</code> 等安全策略，',
+    '    主动禁止被任何网页嵌入显示（必应 Bing、QQ、淘宝、微博等主流站点均如此）。这是站点自身策略，并非本浏览器故障。<br>',
+    '    你可以选择：在<strong>新窗口</strong>中调用一个新的 HTML 实例打开它，或直接在系统浏览器中打开原站点。',
+    (t.httpTried ? '<br><strong>已尝试 HTTPS 与 HTTP 两种协议，仍无法嵌入。</strong>' : '') + '</p>',
+    '  <div class="err-actions">',
+    '    <button class="btn" data-act="new-instance">在新窗口打开（HTML 实例）</button>',
+    '    <button class="btn ghost" data-act="system">在系统浏览器中打开</button>',
+    (t.url && /^https:/i.test(t.url) && !t.httpTried ? '    <button class="btn gray" data-act="http-switch">改用 HTTP 打开</button>' : ''),
+    '    <button class="btn gray" data-act="retry">尝试嵌入</button>',
+    '    <button class="btn gray" data-act="wait">忽略</button>',
+    '  </div>',
+    '</div>'
+  ].join("");
+  ov.addEventListener("click", function(ev){
+    var act = ev.target.closest("[data-act]");
+    if(!act) return;
+    var action = act.dataset.act;
+    if(action === "new-instance"){
+      var base = location.href.split("?")[0].split("#")[0];
+      window.open(base + "?u=" + encodeURIComponent(t.url), "_blank");
+    } else if(action === "system"){
+      window.open(t.url, "_blank");
+    } else if(action === "http-switch"){
+      t.httpTried = true;
+      hideBlockedOverlay(t.id);
+      navTo(t.id, httpSwap(t.url));
+    } else if(action === "retry"){
+      hideBlockedOverlay(t.id);
+      loadUrl(t.id, t.url, false);
+    } else if(action === "wait"){
+      hideBlockedOverlay(t.id);
+      scheduleLoadTimeout(t);
+    }
+  });
+  pane.appendChild(ov);
+}
+function hideBlockedOverlay(id){
+  var pane = document.querySelector('.pane[data-tid="'+id+'"]');
+  if(!pane) return;
+  var ov = pane.querySelector(".blocked-overlay");
+  if(ov) ov.remove();
+}
+function escapeHtml(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+/* ---------------- 启动 ---------------- */
+(function boot(){
+  renderFavbar();
+  var qs = new URLSearchParams(location.search);
+  var bootUrl = qs.get("u");
+  if(bootUrl){
+    newTab(bootUrl);
+  } else {
+    // 主页 = cn.bing.com（若被站点禁止嵌入，将显示错误页兜底并提供新实例打开）
+    newTab(HOME);
+  }
+})();
+</script>
+</body>
+</html>
